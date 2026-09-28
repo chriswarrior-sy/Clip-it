@@ -1,505 +1,61 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Clip-it | YouTube Video Clipper</title>
-    <style>
-      :root {
-        --bg-dark: #0f172a;
-        --bg-light: #f8fafc;
-        --panel: #ffffff;
-        --accent: #7c3aed;
-        --accent-2: #ef4444;
-        --text: #111827;
-        --muted: #475569;
-        --success: #16a34a;
-        --warning: #f59e0b;
-        --shadow: rgba(15, 23, 42, 0.18);
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clip-it | YouTube Video Clipper</title>
+  <style>
+    :root{font-family:system-ui,sans-serif;color:#172033;background:#f8fafc}body{max-width:960px;margin:0 auto;padding:24px}main{background:white;padding:24px;border-radius:16px;box-shadow:0 8px 30px #0001}input,button{font:inherit;padding:12px;border-radius:8px;border:1px solid #ccd3df}input{width:min(100%,700px)}button{cursor:pointer;background:#673ab7;color:white;border:0;font-weight:700}.clips{display:grid;gap:10px;margin-top:20px}.clip{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px;background:#f1f5f9;border-radius:10px}.clip a{color:white;background:#15803d;padding:9px 12px;border-radius:7px;text-decoration:none;font-weight:700;white-space:nowrap}.status{margin-top:16px;color:#475569}.error{color:#b91c1c}@media(max-width:650px){.clip{display:block}.clip a{display:inline-block;margin-top:10px}}
+  </style>
+</head>
+<body>
+<main>
+  <h1>🎬 Clip-it</h1>
+  <p>Paste a YouTube link to create downloadable one-minute clips automatically.</p>
+  <form id="form">
+    <input id="url" type="url" required placeholder="https://www.youtube.com/watch?v=..." aria-label="YouTube URL">
+    <button type="submit">Generate clips</button>
+  </form>
+  <p id="status" class="status"></p>
+  <section id="clips" class="clips" aria-live="polite"></section>
+</main>
+<script>
+  const $ = id => document.getElementById(id);
+  const CLIP_SECONDS = 60, MIN_CLIPS = 10, MAX_CLIPS = 50;
+  function videoId(value) {
+    try {
+      const url = new URL(value);
+      if (url.hostname === 'youtu.be') return url.pathname.slice(1).split('/')[0];
+      if (url.hostname.endsWith('youtube.com')) {
+        if (url.pathname === '/watch') return url.searchParams.get('v');
+        const parts = url.pathname.split('/').filter(Boolean);
+        if (['embed','shorts','v'].includes(parts[0])) return parts[1];
       }
-
-      * { box-sizing: border-box; }
-
-      body {
-        margin: 0;
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        background: linear-gradient(135deg, #1e293b 0%, #334155 45%, #7c3aed 100%);
-        min-height: 100vh;
-        color: var(--text);
-      }
-
-      .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 32px 20px 48px;
-      }
-
-      .card {
-        background: rgba(255, 255, 255, 0.96);
-        border-radius: 18px;
-        box-shadow: 0 22px 60px var(--shadow);
-        overflow: hidden;
-      }
-
-      header {
-        background: linear-gradient(135deg, var(--accent-2) 0%, #991b1b 100%);
-        color: white;
-        padding: 40px 24px;
-        text-align: center;
-      }
-
-      h1 {
-        margin: 0 0 8px;
-        font-size: clamp(2rem, 4vw, 3rem);
-      }
-
-      header p {
-        margin: 0;
-        opacity: 0.92;
-        font-size: 1.1rem;
-      }
-
-      .main {
-        padding: 32px 20px 40px;
-      }
-
-      .input-panel {
-        max-width: 820px;
-        margin: 0 auto 28px;
-        text-align: center;
-      }
-
-      label {
-        display: block;
-        margin-bottom: 10px;
-        font-weight: 700;
-        color: var(--muted);
-      }
-
-      input[type="text"],
-      input[type="number"] {
-        width: 100%;
-        padding: 14px 16px;
-        font-size: 1rem;
-        border: 2px solid #dfe7f1;
-        border-radius: 10px;
-        transition: border-color 0.2s ease, box-shadow 0.2s ease;
-      }
-
-      input[type="text"]:focus,
-      input[type="number"]:focus {
-        outline: none;
-        border-color: var(--accent);
-        box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.12);
-      }
-
-      #youtube-url {
-        margin-bottom: 14px;
-      }
-
-      button,
-      .download-btn {
-        border: none;
-        border-radius: 10px;
-        cursor: pointer;
-        font-weight: 700;
-        transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-      }
-
-      button:hover,
-      .download-btn:hover {
-        transform: translateY(-1px);
-      }
-
-      .primary-btn {
-        background: linear-gradient(135deg, var(--accent) 0%, #4f46e5 100%);
-        color: white;
-        padding: 14px 28px;
-        font-size: 1rem;
-      }
-
-      .primary-btn:hover {
-        box-shadow: 0 10px 22px rgba(124, 58, 237, 0.3);
-      }
-
-      .video-panel {
-        max-width: 1040px;
-        margin: 0 auto;
-      }
-
-      .hidden {
-        display: none !important;
-      }
-
-      #youtube-player {
-        width: 100%;
-        aspect-ratio: 16 / 9;
-        background: #000;
-        border-radius: 12px;
-        overflow: hidden;
-      }
-
-      .controls {
-        background: #f8fafc;
-        border-radius: 12px;
-        padding: 22px;
-        margin-top: 20px;
-      }
-
-      .controls h2 {
-        margin: 0 0 18px;
-        color: #1f2937;
-      }
-
-      .video-info {
-        background: #eef2ff;
-        padding: 14px 18px;
-        border-radius: 10px;
-        text-align: center;
-        margin-bottom: 20px;
-        font-weight: 700;
-        color: #312e81;
-      }
-
-      .loading-spinner {
-        display: inline-block;
-        width: 20px;
-        height: 20px;
-        border: 3px solid #f3f3f3;
-        border-top: 3px solid #7c3aed;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        margin-right: 10px;
-      }
-
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-
-      .clip-list {
-        margin-top: 28px;
-        display: grid;
-        gap: 12px;
-      }
-
-      .clip-item {
-        display: grid;
-        grid-template-columns: 1fr auto auto;
-        gap: 12px;
-        align-items: center;
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 12px 16px;
-      }
-
-      .clip-item .label {
-        font-weight: 700;
-        color: #1f2937;
-      }
-
-      .clip-item .actions {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-      }
-
-      .small-btn {
-        background: #0f172a;
-        color: white;
-        padding: 10px 14px;
-        font-size: 0.85rem;
-      }
-
-      .small-btn.alt {
-        background: #7c3aed;
-      }
-
-      .error-message {
-        max-width: 820px;
-        margin: 18px auto 0;
-        background: #fee2e2;
-        color: #991b1b;
-        border: 1px solid #fecaca;
-        border-radius: 10px;
-        padding: 16px 18px;
-      }
-
-      footer {
-        text-align: center;
-        padding: 18px 20px 10px;
-        color: #e2e8f0;
-        font-size: 0.95rem;
-      }
-
-      @media (max-width: 700px) {
-        .clip-item {
-          grid-template-columns: 1fr;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <div class="card">
-        <header>
-          <h1>🎬 Clip-it</h1>
-          <p>Create short clips from YouTube videos instantly</p>
-        </header>
-
-        <div class="main">
-          <div class="input-panel">
-            <label for="youtube-url">Enter YouTube URL</label>
-            <input
-              type="text"
-              id="youtube-url"
-              placeholder="https://www.youtube.com/watch?v=..."
-              required
-            />
-            <button id="load-video" class="primary-btn">Load Video</button>
-          </div>
-
-          <div id="video-panel" class="video-panel hidden">
-            <div id="youtube-player"></div>
-
-            <div class="controls">
-              <div id="video-info" class="video-info hidden"></div>
-              <div id="clip-list" class="clip-list hidden"></div>
-
-              <div>
-                <button id="create-another" class="primary-btn">Load Another Video</button>
-              </div>
-            </div>
-          </div>
-
-          <div id="error-message" class="error-message hidden"></div>
-        </div>
-
-        <footer>
-          <p>⚠️ For personal use only. Respect copyright and YouTube's Terms of Service.</p>
-        </footer>
-      </div>
-    </div>
-
-    <script>
-      let player;
-      let videoId = null;
-      const CLIP_DURATION_SECONDS = 60;
-      const MIN_CLIPS = 10;
-      const MAX_CLIPS = 50;
-
-      document.addEventListener("DOMContentLoaded", function () {
-        document.getElementById("load-video").addEventListener("click", loadVideo);
-        document.getElementById("create-another").addEventListener("click", resetForm);
-      });
-
-      function validateYouTubeURL(url) {
-        const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-        const match = url.match(regex);
-        return match ? match[1] : null;
-      }
-
-      function showError(message) {
-        const errorElement = document.getElementById("error-message");
-        errorElement.textContent = message;
-        errorElement.classList.remove("hidden");
-      }
-
-      function hideError() {
-        document.getElementById("error-message").classList.add("hidden");
-      }
-
-      function formatTime(totalSeconds) {
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const seconds = totalSeconds % 60;
-
-        if (hours > 0) {
-          return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-        }
-
-        return `${minutes}:${String(seconds).padStart(2, "0")}`;
-      }
-
-      function createClipLink(startTime, endTime) {
-        const safeStart = Math.max(0, Number(startTime) || 0);
-        const safeEnd = Math.max(safeStart + 1, Number(endTime) || safeStart + 1);
-        const params = new URLSearchParams({
-          v: videoId,
-          start: String(safeStart),
-          end: String(safeEnd)
-        });
-        return `https://www.youtube.com/watch?${params.toString()}`;
-      }
-
-      function copyClipLink(url) {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(url)
-            .then(() => {
-              alert("Clip link copied to clipboard.");
-            })
-            .catch(() => {
-              alert("Copy failed. You can still use the Open Clip button.");
-            });
-          return;
-        }
-
-        alert("Clipboard copy is not available in this browser. Use the Open Clip button instead.");
-      }
-
-      function shareClip(url) {
-        const shareData = {
-          title: "Clip-it Clip",
-          text: "Check out this 1-minute clip.",
-          url
-        };
-
-        if (navigator.share) {
-          navigator.share(shareData).catch(() => {});
-          return;
-        }
-
-        const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent("Check out this 1-minute clip")}&url=${encodeURIComponent(url)}`;
-        window.open(twitterUrl, "_blank", "noopener,noreferrer");
-      }
-
-      function calculateClipCount(totalSeconds) {
-        const baseClipCount = Math.ceil(totalSeconds / CLIP_DURATION_SECONDS);
-        
-        // Ensure at least MIN_CLIPS, but cap at MAX_CLIPS
-        if (baseClipCount < MIN_CLIPS) {
-          return MIN_CLIPS;
-        }
-        if (baseClipCount > MAX_CLIPS) {
-          return MAX_CLIPS;
-        }
-        
-        return baseClipCount;
-      }
-
-      function generateMinuteClips(totalSeconds) {
-        if (!videoId) {
-          showError("Video ID not found.");
-          return;
-        }
-
-        if (totalSeconds <= 0) {
-          showError("The video duration could not be read.");
-          return;
-        }
-
-        const clipCount = calculateClipCount(totalSeconds);
-        const segmentSize = totalSeconds / clipCount;
-
-        const clipList = document.getElementById("clip-list");
-        clipList.innerHTML = "";
-        clipList.classList.remove("hidden");
-
-        for (let index = 0; index < clipCount; index++) {
-          const startTime = Math.floor(index * segmentSize);
-          const endTime = Math.floor((index + 1) * segmentSize);
-          const clipUrl = createClipLink(startTime, endTime);
-
-          const item = document.createElement("div");
-          item.className = "clip-item";
-
-          const label = document.createElement("div");
-          label.className = "label";
-          label.textContent = `Clip ${index + 1}: ${formatTime(startTime)} - ${formatTime(endTime)}`;
-
-          const actions = document.createElement("div");
-          actions.className = "actions";
-
-          const openBtn = document.createElement("button");
-          openBtn.className = "small-btn";
-          openBtn.textContent = "Open";
-          openBtn.addEventListener("click", () => window.open(clipUrl, "_blank", "noopener,noreferrer"));
-
-          const copyBtn = document.createElement("button");
-          copyBtn.className = "small-btn alt";
-          copyBtn.textContent = "Copy Link";
-          copyBtn.addEventListener("click", () => copyClipLink(clipUrl));
-
-          const shareBtn = document.createElement("button");
-          shareBtn.className = "small-btn alt";
-          shareBtn.textContent = "Share";
-          shareBtn.addEventListener("click", () => shareClip(clipUrl));
-
-          actions.appendChild(openBtn);
-          actions.appendChild(copyBtn);
-          actions.appendChild(shareBtn);
-
-          item.appendChild(label);
-          item.appendChild(actions);
-          clipList.appendChild(item);
-        }
-
-        hideError();
-      }
-
-      function loadVideo() {
-        const url = document.getElementById("youtube-url").value.trim();
-        videoId = validateYouTubeURL(url);
-
-        if (!videoId) {
-          showError("Invalid YouTube URL. Please enter a valid video URL.");
-          return;
-        }
-
-        hideError();
-        document.getElementById("video-panel").classList.remove("hidden");
-
-        if (player) {
-          player.destroy();
-        }
-
-        // Show loading message
-        const videoInfo = document.getElementById("video-info");
-        videoInfo.innerHTML = '<span class="loading-spinner"></span>Generating clips...';
-        videoInfo.classList.remove("hidden");
-
-        player = new YT.Player("youtube-player", {
-          height: "100%",
-          width: "100%",
-          videoId,
-          playerVars: {
-            playsinline: 1,
-            rel: 0,
-            modestbranding: 1,
-          },
-          events: {
-            onReady: (event) => {
-              // Get video duration and generate clips
-              setTimeout(() => {
-                const duration = Math.floor(event.target.getDuration());
-                generateMinuteClips(duration);
-
-                // Update info panel with video duration
-                videoInfo.innerHTML = `✅ Video loaded! Duration: ${formatTime(duration)} | Generated ${calculateClipCount(duration)} clips`;
-              }, 500);
-            },
-            onStateChange: (event) => {
-              // Handle state changes if needed
-            },
-          },
-        });
-      }
-
-      function resetForm() {
-        document.getElementById("youtube-url").value = "";
-        document.getElementById("video-panel").classList.add("hidden");
-        document.getElementById("clip-list").classList.add("hidden");
-        document.getElementById("video-info").classList.add("hidden");
-        document.getElementById("clip-list").innerHTML = "";
-
-        if (player) {
-          player.destroy();
-          player = null;
-        }
-      }
-    </script>
-    <script src="https://www.youtube.com/iframe_api"></script>
-  </body>
+    } catch (_) {}
+    return null;
+  }
+  function time(seconds) { const m=Math.floor(seconds/60), s=seconds%60; return `${m}:${String(s).padStart(2,'0')}`; }
+  function count(duration) { return Math.min(MAX_CLIPS, Math.max(MIN_CLIPS, Math.ceil(duration / CLIP_SECONDS))); }
+  function render(id, duration) {
+    const total = count(duration), size = duration / total, list = $('clips'); list.innerHTML='';
+    for (let i=0;i<total;i++) {
+      const start=Math.floor(i*size), end=Math.max(start+1, Math.floor((i+1)*size));
+      const row=document.createElement('div'); row.className='clip';
+      row.innerHTML=`<span><strong>Clip ${i+1}</strong>: ${time(start)} – ${time(end)}</span><a href="/api/clip?videoId=${encodeURIComponent(id)}&start=${start}&end=${end}" download="clip-${i+1}.mp4">Download MP4</a>`;
+      list.appendChild(row);
+    }
+  }
+  $('form').addEventListener('submit', async event => {
+    event.preventDefault(); $('clips').innerHTML=''; $('status').className='status';
+    const id=videoId($('url').value.trim());
+    if (!id) { $('status').textContent='Enter a valid YouTube video URL.'; $('status').className='status error'; return; }
+    $('status').textContent='Reading video duration…';
+    try {
+      const response=await fetch(`/api/video-info?videoId=${encodeURIComponent(id)}`);
+      const data=await response.json(); if (!response.ok) throw new Error(data.error || 'Could not read the video.');
+      render(id, data.duration); $('status').textContent=`Generated ${count(data.duration)} clips from a ${time(data.duration)} video.`;
+    } catch (error) { $('status').textContent=error.message; $('status').className='status error'; }
+  });
+</script>
+</body>
 </html>
