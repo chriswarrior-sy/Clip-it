@@ -462,7 +462,14 @@
       }
 
       function createClipLink(startTime, endTime) {
-        return `https://www.youtube.com/watch?v=${videoId}&t=${startTime}s`;
+        const safeStart = Math.max(0, Number(startTime) || 0);
+        const safeEnd = Math.max(safeStart + 1, Number(endTime) || safeStart + 1);
+        const params = new URLSearchParams({
+          v: videoId,
+          start: String(safeStart),
+          end: String(safeEnd)
+        });
+        return `https://www.youtube.com/watch?${params.toString()}`;
       }
 
       function copyClipLink(url) {
@@ -701,7 +708,7 @@
         }
 
         hideError();
-        const clipUrl = `https://www.youtube.com/watch?v=${videoId}&t=${startTime}s`;
+        const clipUrl = createClipLink(startTime, endTime);
         document.getElementById("download-box").classList.remove("hidden");
         const link = document.getElementById("download-link");
         link.href = clipUrl;
