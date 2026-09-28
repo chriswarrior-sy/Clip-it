@@ -1,61 +1,325 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Clip-it | YouTube Video Clipper</title>
   <style>
-    :root{font-family:system-ui,sans-serif;color:#172033;background:#f8fafc}body{max-width:960px;margin:0 auto;padding:24px}main{background:white;padding:24px;border-radius:16px;box-shadow:0 8px 30px #0001}input,button{font:inherit;padding:12px;border-radius:8px;border:1px solid #ccd3df}input{width:min(100%,700px)}button{cursor:pointer;background:#673ab7;color:white;border:0;font-weight:700}.clips{display:grid;gap:10px;margin-top:20px}.clip{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px;background:#f1f5f9;border-radius:10px}.clip a{color:white;background:#15803d;padding:9px 12px;border-radius:7px;text-decoration:none;font-weight:700;white-space:nowrap}.status{margin-top:16px;color:#475569}.error{color:#b91c1c}@media(max-width:650px){.clip{display:block}.clip a{display:inline-block;margin-top:10px}}
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #1e293b 0%, #334155 45%, #7c3aed 100%);
+      min-height: 100vh;
+      padding: 32px 20px;
+      color: #1f2937;
+    }
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      background: white;
+      padding: 40px;
+      border-radius: 18px;
+      box-shadow: 0 22px 60px rgba(15, 23, 42, 0.18);
+    }
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 12px;
+      color: #ef4444;
+    }
+    p {
+      font-size: 1.1rem;
+      color: #6b7280;
+      margin-bottom: 24px;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    input[type="url"] {
+      padding: 14px 16px;
+      font-size: 1rem;
+      border: 2px solid #dfe7f1;
+      border-radius: 10px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      width: 100%;
+      max-width: 700px;
+    }
+    input[type="url"]:focus {
+      outline: none;
+      border-color: #7c3aed;
+      box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.12);
+    }
+    button[type="submit"] {
+      align-self: flex-start;
+      padding: 14px 28px;
+      font-size: 1rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+      color: white;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    button[type="submit"]:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 22px rgba(124, 58, 237, 0.3);
+    }
+    .status {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin: 16px 0;
+      min-height: 24px;
+    }
+    .status.loading {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+    .status.success {
+      background: #dcfce7;
+      color: #166534;
+    }
+    .status.error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .clips {
+      display: grid;
+      gap: 12px;
+      margin-top: 28px;
+    }
+    .clip-item {
+      display: grid;
+      grid-template-columns: 1fr auto auto auto;
+      gap: 12px;
+      align-items: center;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px 16px;
+      transition: background 0.2s;
+    }
+    .clip-item:hover {
+      background: #f1f5f9;
+    }
+    .clip-label {
+      font-weight: 700;
+      color: #1f2937;
+    }
+    .clip-btn {
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      white-space: nowrap;
+    }
+    .download-btn {
+      background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+      color: white;
+    }
+    .download-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(22, 163, 74, 0.25);
+    }
+    .copy-btn {
+      background: #7c3aed;
+      color: white;
+    }
+    .copy-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(124, 58, 237, 0.25);
+    }
+    .share-btn {
+      background: #0f172a;
+      color: white;
+    }
+    .share-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.25);
+    }
+    footer {
+      text-align: center;
+      padding: 18px 20px 10px;
+      color: #e2e8f0;
+      font-size: 0.95rem;
+      margin-top: 40px;
+    }
+    @media (max-width: 700px) {
+      main {
+        padding: 24px;
+      }
+      h1 {
+        font-size: 1.8rem;
+      }
+      .clip-item {
+        grid-template-columns: 1fr;
+      }
+      .clip-btn {
+        width: 100%;
+      }
+    }
   </style>
 </head>
 <body>
-<main>
-  <h1>🎬 Clip-it</h1>
-  <p>Paste a YouTube link to create downloadable one-minute clips automatically.</p>
-  <form id="form">
-    <input id="url" type="url" required placeholder="https://www.youtube.com/watch?v=..." aria-label="YouTube URL">
-    <button type="submit">Generate clips</button>
-  </form>
-  <p id="status" class="status"></p>
-  <section id="clips" class="clips" aria-live="polite"></section>
-</main>
-<script>
-  const $ = id => document.getElementById(id);
-  const CLIP_SECONDS = 60, MIN_CLIPS = 10, MAX_CLIPS = 50;
-  function videoId(value) {
-    try {
-      const url = new URL(value);
-      if (url.hostname === 'youtu.be') return url.pathname.slice(1).split('/')[0];
-      if (url.hostname.endsWith('youtube.com')) {
-        if (url.pathname === '/watch') return url.searchParams.get('v');
-        const parts = url.pathname.split('/').filter(Boolean);
-        if (['embed','shorts','v'].includes(parts[0])) return parts[1];
-      }
-    } catch (_) {}
-    return null;
-  }
-  function time(seconds) { const m=Math.floor(seconds/60), s=seconds%60; return `${m}:${String(s).padStart(2,'0')}`; }
-  function count(duration) { return Math.min(MAX_CLIPS, Math.max(MIN_CLIPS, Math.ceil(duration / CLIP_SECONDS))); }
-  function render(id, duration) {
-    const total = count(duration), size = duration / total, list = $('clips'); list.innerHTML='';
-    for (let i=0;i<total;i++) {
-      const start=Math.floor(i*size), end=Math.max(start+1, Math.floor((i+1)*size));
-      const row=document.createElement('div'); row.className='clip';
-      row.innerHTML=`<span><strong>Clip ${i+1}</strong>: ${time(start)} – ${time(end)}</span><a href="/api/clip?videoId=${encodeURIComponent(id)}&start=${start}&end=${end}" download="clip-${i+1}.mp4">Download MP4</a>`;
-      list.appendChild(row);
+  <main>
+    <h1>🎬 Clip-it</h1>
+    <p>Paste a YouTube link to create downloadable one-minute clips automatically.</p>
+    
+    <form id="form">
+      <input 
+        id="url" 
+        type="url" 
+        required 
+        placeholder="https://www.youtube.com/watch?v=..."
+        aria-label="YouTube URL"
+      >
+      <button type="submit">Generate Clips</button>
+    </form>
+    
+    <p id="status" class="status"></p>
+    <section id="clips" class="clips" aria-live="polite"></section>
+  </main>
+  
+  <footer>
+    <p>⚠️ For personal use only. Respect copyright and YouTube's Terms of Service.</p>
+  </footer>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const CLIP_SECONDS = 60;
+    const MIN_CLIPS = 10;
+    const MAX_CLIPS = 50;
+
+    function videoId(value) {
+      try {
+        const url = new URL(value);
+        if (url.hostname === 'youtu.be') {
+          return url.pathname.slice(1).split('/')[0];
+        }
+        if (url.hostname.endsWith('youtube.com')) {
+          if (url.pathname === '/watch') {
+            return url.searchParams.get('v');
+          }
+          const parts = url.pathname.split('/').filter(Boolean);
+          if (['embed', 'shorts', 'v'].includes(parts[0])) {
+            return parts[1];
+          }
+        }
+      } catch (_) {}
+      return null;
     }
-  }
-  $('form').addEventListener('submit', async event => {
-    event.preventDefault(); $('clips').innerHTML=''; $('status').className='status';
-    const id=videoId($('url').value.trim());
-    if (!id) { $('status').textContent='Enter a valid YouTube video URL.'; $('status').className='status error'; return; }
-    $('status').textContent='Reading video duration…';
-    try {
-      const response=await fetch(`/api/video-info?videoId=${encodeURIComponent(id)}`);
-      const data=await response.json(); if (!response.ok) throw new Error(data.error || 'Could not read the video.');
-      render(id, data.duration); $('status').textContent=`Generated ${count(data.duration)} clips from a ${time(data.duration)} video.`;
-    } catch (error) { $('status').textContent=error.message; $('status').className='status error'; }
-  });
-</script>
+
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${m}:${String(s).padStart(2, '0')}`;
+    }
+
+    function calculateClipCount(duration) {
+      return Math.min(MAX_CLIPS, Math.max(MIN_CLIPS, Math.ceil(duration / CLIP_SECONDS)));
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        alert('Link copied to clipboard!');
+      }).catch(() => {
+        alert('Failed to copy. Try right-clicking the download button instead.');
+      });
+    }
+
+    function shareClip(url) {
+      if (navigator.share) {
+        navigator.share({
+          title: 'Clip-it Clip',
+          text: 'Check out this 1-minute clip.',
+          url: url
+        }).catch(() => {});
+      } else {
+        const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent('Check out this 1-minute clip')}&url=${encodeURIComponent(url)}`;
+        window.open(twitterUrl, '_blank', 'noopener,noreferrer');
+      }
+    }
+
+    function renderClips(id, duration) {
+      const total = calculateClipCount(duration);
+      const segmentSize = duration / total;
+      const list = $('clips');
+      list.innerHTML = '';
+
+      for (let i = 0; i < total; i++) {
+        const startTime = Math.floor(i * segmentSize);
+        const endTime = Math.max(startTime + 1, Math.floor((i + 1) * segmentSize));
+        const clipUrl = `/api/clip?videoId=${encodeURIComponent(id)}&start=${startTime}&end=${endTime}`;
+
+        const row = document.createElement('div');
+        row.className = 'clip-item';
+
+        const label = document.createElement('div');
+        label.className = 'clip-label';
+        label.textContent = `Clip ${i + 1}: ${formatTime(startTime)} – ${formatTime(endTime)}`;
+
+        const downloadBtn = document.createElement('a');
+        downloadBtn.href = clipUrl;
+        downloadBtn.download = `clip-${i + 1}.mp4`;
+        downloadBtn.className = 'clip-btn download-btn';
+        downloadBtn.textContent = 'Download';
+
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'clip-btn copy-btn';
+        copyBtn.textContent = 'Copy Link';
+        copyBtn.addEventListener('click', () => copyToClipboard(clipUrl));
+
+        const shareBtn = document.createElement('button');
+        shareBtn.className = 'clip-btn share-btn';
+        shareBtn.textContent = 'Share';
+        shareBtn.addEventListener('click', () => shareClip(clipUrl));
+
+        row.appendChild(label);
+        row.appendChild(downloadBtn);
+        row.appendChild(copyBtn);
+        row.appendChild(shareBtn);
+        list.appendChild(row);
+      }
+    }
+
+    $('form').addEventListener('submit', async event => {
+      event.preventDefault();
+      $('clips').innerHTML = '';
+      $('status').className = 'status loading';
+      $('status').textContent = 'Reading video duration…';
+
+      const id = videoId($('url').value.trim());
+      if (!id) {
+        $('status').className = 'status error';
+        $('status').textContent = 'Enter a valid YouTube video URL.';
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/video-info?videoId=${encodeURIComponent(id)}`);
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Could not read the video.');
+        }
+        const data = await response.json();
+        const clipCount = calculateClipCount(data.duration);
+        renderClips(id, data.duration);
+        $('status').className = 'status success';
+        $('status').textContent = `✅ Generated ${clipCount} clips from a ${formatTime(data.duration)} video.`;
+      } catch (error) {
+        $('status').className = 'status error';
+        $('status').textContent = `Error: ${error.message}`;
+      }
+    });
+  </script>
 </body>
 </html>
