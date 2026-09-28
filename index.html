@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clip-it | YouTube Video Clipper</title>
+    <style>
+      :root {
+        --bg-dark: #0f172a;
+        --bg-light: #f8fafc;
+        --panel: #ffffff;
+        --accent: #7c3aed;
+        --accent-2: #ef4444;
+        --text: #111827;
+        --muted: #475569;
+        --success: #16a34a;
+        --warning: #f59e0b;
+        --shadow: rgba(15, 23, 42, 0.18);
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #1e293b 0%, #334155 45%, #7c3aed 100%);
+        min-height: 100vh;
+        color: var(--text);
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 32px 20px 48px;
+      }
+
+      .card {
+        background: rgba(255, 255, 255, 0.96);
+        border-radius: 18px;
+        box-shadow: 0 22px 60px var(--shadow);
+        overflow: hidden;
+      }
+
+      header {
+        background: linear-gradient(135deg, var(--accent-2) 0%, #991b1b 100%);
+        color: white;
+        padding: 40px 24px;
+        text-align: center;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: clamp(2rem, 4vw, 3rem);
+      }
+
+      header p {
+        margin: 0;
+        opacity: 0.92;
+        font-size: 1.1rem;
+      }
+
+      .main {
+        padding: 32px 20px 40px;
+      }
+
+      .input-panel {
+        max-width: 820px;
+        margin: 0 auto 28px;
+        text-align: center;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 10px;
+        font-weight: 700;
+        color: var(--muted);
+      }
+
+      input[type="text"],
+      input[type="number"] {
+        width: 100%;
+        padding: 14px 16px;
+        font-size: 1rem;
+        border: 2px solid #dfe7f1;
+        border-radius: 10px;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      input[type="text"]:focus,
+      input[type="number"]:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.12);
+      }
+
+      #youtube-url {
+        margin-bottom: 14px;
+      }
+
+      button,
+      .download-btn {
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 700;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+      }
+
+      button:hover,
+      .download-btn:hover {
+        transform: translateY(-1px);
+      }
+
+      .primary-btn {
+        background: linear-gradient(135deg, var(--accent) 0%, #4f46e5 100%);
+        color: white;
+        padding: 14px 28px;
+        font-size: 1rem;
+      }
+
+      .primary-btn:hover {
+        box-shadow: 0 10px 22px rgba(124, 58, 237, 0.3);
+      }
+
+      .video-panel {
+        max-width: 1040px;
+        margin: 0 auto;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      #youtube-player,
+      #preview-player {
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        background: #000;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      .controls {
+        background: #f8fafc;
+        border-radius: 12px;
+        padding: 22px;
+        margin-top: 20px;
+      }
+
+      .controls h2 {
+        margin: 0 0 18px;
+        color: #1f2937;
+      }
+
+      .time-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+
+      .time-box {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+        padding: 18px;
+      }
+
+      .time-box label {
+        margin-bottom: 12px;
+      }
+
+      .time-box .inputs {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .time-box input {
+        width: 72px;
+        text-align: center;
+        padding: 10px 8px;
+        font-size: 1.1rem;
+      }
+
+      .quick-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      .secondary-btn {
+        background: #64748b;
+        color: white;
+        padding: 12px 16px;
+        font-size: 0.95rem;
+      }
+
+      .secondary-btn:hover {
+        box-shadow: 0 10px 22px rgba(100, 116, 139, 0.25);
+      }
+
+      .duration {
+        background: #eef2ff;
+        padding: 14px 18px;
+        border-radius: 10px;
+        text-align: center;
+        margin-bottom: 20px;
+        font-weight: 700;
+        color: #312e81;
+      }
+
+      .action-btn {
+        width: 100%;
+        padding: 16px 18px;
+        font-size: 1.05rem;
+        margin-bottom: 10px;
+      }
+
+      .action-btn.success {
+        background: linear-gradient(135deg, #22c55e 0%, #15803d 100%);
+        color: white;
+      }
+
+      .action-btn.warning {
+        background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+        color: #1f2937;
+      }
+
+      .preview-box {
+        margin-top: 20px;
+      }
+
+      .preview-box h3 {
+        margin-bottom: 10px;
+      }
+
+      .download-box {
+        background: #dcfce7;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+        padding: 24px 20px;
+        border-radius: 12px;
+        text-align: center;
+        margin-top: 20px;
+      }
+
+      .download-box h3 {
+        margin: 0 0 8px;
+      }
+
+      .download-box p {
+        margin: 0 0 18px;
+      }
+
+      .download-btn {
+        display: inline-block;
+        background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+        color: white;
+        padding: 14px 28px;
+        text-decoration: none;
+        margin-bottom: 12px;
+      }
+
+      .error-message {
+        max-width: 820px;
+        margin: 18px auto 0;
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+        border-radius: 10px;
+        padding: 16px 18px;
+      }
+
+      footer {
+        text-align: center;
+        padding: 18px 20px 10px;
+        color: #e2e8f0;
+        font-size: 0.95rem;
+      }
+
+      @media (max-width: 700px) {
+        .time-grid,
+        .quick-actions {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <header>
+          <h1>🎬 Clip-it</h1>
+          <p>Create short clips from YouTube videos instantly</p>
+        </header>
+
+        <div class="main">
+          <div class="input-panel">
+            <label for="youtube-url">Enter YouTube URL</label>
+            <input
+              type="text"
+              id="youtube-url"
+              placeholder="https://www.youtube.com/watch?v=..."
+              required
+            />
+            <button id="load-video" class="primary-btn">Load Video</button>
+          </div>
+
+          <div id="video-panel" class="video-panel hidden">
+            <div id="youtube-player"></div>
+
+            <div class="controls">
+              <h2>Set Clip Parameters</h2>
+
+              <div class="time-grid">
+                <div class="time-box">
+                  <label>Start Time</label>
+                  <div class="inputs">
+                    <input type="number" id="start-hours" placeholder="HH" min="0" max="23" value="0" />
+                    <input type="number" id="start-minutes" placeholder="MM" min="0" max="59" value="0" />
+                    <input type="number" id="start-seconds" placeholder="SS" min="0" max="59" value="0" />
+                  </div>
+                </div>
+
+                <div class="time-box">
+                  <label>End Time</label>
+                  <div class="inputs">
+                    <input type="number" id="end-hours" placeholder="HH" min="0" max="23" value="0" />
+                    <input type="number" id="end-minutes" placeholder="MM" min="0" max="59" value="0" />
+                    <input type="number" id="end-seconds" placeholder="SS" min="0" max="59" value="0" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="quick-actions">
+                <button id="set-current-start" class="secondary-btn">Set Start to Current Position</button>
+                <button id="set-current-end" class="secondary-btn">Set End to Current Position</button>
+              </div>
+
+              <div class="duration">
+                <span>Clip Duration: <span id="clip-duration">0s</span></span>
+              </div>
+
+              <button id="create-clip" class="action-btn success">Create Clip</button>
+              <button id="preview-clip" class="action-btn warning">Preview Clip</button>
+            </div>
+
+            <div id="preview-box" class="preview-box hidden">
+              <h3>Preview</h3>
+              <div id="preview-player"></div>
+            </div>
+
+            <div id="download-box" class="download-box hidden">
+              <h3>✅ Clip Created Successfully!</h3>
+              <p>Your clip is ready for sharing.</p>
+              <a id="download-link" class="download-btn" target="_blank" rel="noreferrer">Open Clip</a>
+              <div>
+                <button id="create-another" class="secondary-btn">Create Another Clip</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="error-message" class="error-message hidden"></div>
+        </div>
+
+        <footer>
+          <p>⚠️ For personal use only. Respect copyright and YouTube's Terms of Service.</p>
+        </footer>
+      </div>
+    </div>
+
+    <script>
+      let player;
+      let previewPlayer;
+      let videoId = null;
+
+      document.addEventListener("DOMContentLoaded", function () {
+        document.getElementById("load-video").addEventListener("click", loadVideo);
+        document.getElementById("set-current-start").addEventListener("click", setCurrentStartTime);
+        document.getElementById("set-current-end").addEventListener("click", setCurrentEndTime);
+        document.getElementById("create-clip").addEventListener("click", createClip);
+        document.getElementById("preview-clip").addEventListener("click", previewClip);
+        document.getElementById("create-another").addEventListener("click", resetForm);
+
+        document.querySelectorAll('input[type="number"]').forEach((input) => {
+          input.addEventListener("change", updateDuration);
+        });
+      });
+
+      function validateYouTubeURL(url) {
+        const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+        const match = url.match(regex);
+        return match ? match[1] : null;
+      }
+
+      function showError(message) {
+        const errorElement = document.getElementById("error-message");
+        errorElement.textContent = message;
+        errorElement.classList.remove("hidden");
+      }
+
+      function hideError() {
+        document.getElementById("error-message").classList.add("hidden");
+      }
+
+      function loadVideo() {
+        const url = document.getElementById("youtube-url").value.trim();
+        videoId = validateYouTubeURL(url);
+
+        if (!videoId) {
+          showError("Invalid YouTube URL. Please enter a valid video URL.");
+          return;
+        }
+
+        hideError();
+        document.getElementById("video-panel").classList.remove("hidden");
+
+        if (player) {
+          player.destroy();
+        }
+
+        player = new YT.Player("youtube-player", {
+          height: "100%",
+          width: "100%",
+          videoId,
+          playerVars: {
+            playsinline: 1,
+            rel: 0,
+            modestbranding: 1,
+          },
+          events: {
+            onReady: () => console.log("Player ready"),
+            onStateChange: (event) => {
+              if (event.data === YT.PlayerState.PLAYING) {
+                checkClipEnd();
+              }
+            },
+          },
+        });
+      }
+
+      function setTimeFromSeconds(prefix, totalSeconds) {
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        document.getElementById(`${prefix}-hours`).value = hours;
+        document.getElementById(`${prefix}-minutes`).value = minutes;
+        document.getElementById(`${prefix}-seconds`).value = seconds;
+      }
+
+      function getTimeInSeconds(prefix) {
+        const hours = parseInt(document.getElementById(`${prefix}-hours`).value, 10) || 0;
+        const minutes = parseInt(document.getElementById(`${prefix}-minutes`).value, 10) || 0;
+        const seconds = parseInt(document.getElementById(`${prefix}-seconds`).value, 10) || 0;
+        return hours * 3600 + minutes * 60 + seconds;
+      }
+
+      function setCurrentStartTime() {
+        if (!player || !player.getCurrentTime) return;
+        const currentTime = Math.floor(player.getCurrentTime());
+        setTimeFromSeconds("start", currentTime);
+        updateDuration();
+      }
+
+      function setCurrentEndTime() {
+        if (!player || !player.getCurrentTime) return;
+        const currentTime = Math.floor(player.getCurrentTime());
+        setTimeFromSeconds("end", currentTime);
+        updateDuration();
+      }
+
+      function updateDuration() {
+        const startTime = getTimeInSeconds("start");
+        const endTime = getTimeInSeconds("end");
+        const duration = endTime - startTime;
+        document.getElementById("clip-duration").textContent = duration > 0 ? `${duration}s` : "0s";
+      }
+
+      function previewClip() {
+        const startTime = getTimeInSeconds("start");
+        const endTime = getTimeInSeconds("end");
+
+        if (endTime <= startTime) {
+          showError("End time must be greater than start time.");
+          return;
+        }
+
+        hideError();
+        document.getElementById("preview-box").classList.remove("hidden");
+
+        if (previewPlayer) {
+          previewPlayer.destroy();
+        }
+
+        previewPlayer = new YT.Player("preview-player", {
+          height: "100%",
+          width: "100%",
+          videoId,
+          playerVars: {
+            start: startTime,
+            playsinline: 1,
+            rel: 0,
+            modestbranding: 1,
+          },
+          events: {
+            onReady: (event) => {
+              event.target.seekTo(startTime);
+              event.target.playVideo();
+            },
+            onStateChange: (event) => {
+              if (event.data === YT.PlayerState.PLAYING) {
+                const checkInterval = setInterval(() => {
+                  if (previewPlayer && previewPlayer.getCurrentTime && previewPlayer.getCurrentTime() >= endTime) {
+                    previewPlayer.pauseVideo();
+                    clearInterval(checkInterval);
+                  }
+                }, 100);
+              }
+            },
+          },
+        });
+      }
+
+      function checkClipEnd() {
+        if (player && previewPlayer) {
+          const currentTime = player.getCurrentTime();
+          const endTime = getTimeInSeconds("end");
+          if (currentTime >= endTime) {
+            player.pauseVideo();
+          }
+        }
+      }
+
+      function createClip() {
+        const startTime = getTimeInSeconds("start");
+        const endTime = getTimeInSeconds("end");
+
+        if (endTime <= startTime) {
+          showError("End time must be greater than start time.");
+          return;
+        }
+
+        if (endTime - startTime > 600) {
+          showError("Clip duration cannot exceed 10 minutes.");
+          return;
+        }
+
+        hideError();
+
+        const clipUrl = `https://www.youtube.com/embed/${videoId}?start=${startTime}&end=${endTime}`;
+        document.getElementById("download-box").classList.remove("hidden");
+        const link = document.getElementById("download-link");
+        link.href = clipUrl;
+      }
+
+      function resetForm() {
+        document.getElementById("youtube-url").value = "";
+        document.getElementById("video-panel").classList.add("hidden");
+        document.getElementById("preview-box").classList.add("hidden");
+        document.getElementById("download-box").classList.add("hidden");
+        document.getElementById("clip-duration").textContent = "0s";
+
+        setTimeFromSeconds("start", 0);
+        setTimeFromSeconds("end", 0);
+
+        if (player) {
+          player.destroy();
+          player = null;
+        }
+
+        if (previewPlayer) {
+          previewPlayer.destroy();
+          previewPlayer = null;
+        }
+      }
+    </script>
+    <script src="https://www.youtube.com/iframe_api"></script>
+  </body>
+</html>
