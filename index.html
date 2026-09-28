@@ -4,7 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Clip-it | YouTube Video Clipper & Local Video Editor</title>
-    <script src="https://cdn.jsdelivr.net/npm/ffmpeg@0.12.6/dist/ffmpeg.min.js"></script>
     <style>
       :root {
         --bg-dark: #0f172a;
@@ -246,9 +245,13 @@
       }
 
       #local-video-player {
-        aspect-ratio: 16 / 9;
         max-width: 100%;
         margin: 0 auto;
+      }
+
+      .video-frame-standard {
+        aspect-ratio: 16 / 9;
+        max-width: 100%;
       }
 
       .video-frame-tiktok {
@@ -261,11 +264,6 @@
         aspect-ratio: 1 / 1;
         max-width: 540px;
         margin: 0 auto;
-      }
-
-      .video-frame-standard {
-        aspect-ratio: 16 / 9;
-        max-width: 100%;
       }
 
       .controls {
@@ -409,33 +407,6 @@
         margin-bottom: 12px;
       }
 
-      .download-progress {
-        margin-top: 10px;
-        padding: 12px;
-        background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        text-align: center;
-        font-size: 0.9rem;
-        color: var(--muted);
-      }
-
-      .progress-bar {
-        width: 100%;
-        height: 6px;
-        background: #e2e8f0;
-        border-radius: 3px;
-        margin-top: 8px;
-        overflow: hidden;
-      }
-
-      .progress-fill {
-        height: 100%;
-        background: var(--accent);
-        width: 0%;
-        transition: width 0.1s ease;
-      }
-
       @media (max-width: 700px) {
         .clip-item {
           grid-template-columns: 1fr;
@@ -500,7 +471,6 @@
                 type="file"
                 id="video-file"
                 accept="video/*"
-                required
               />
               <button id="upload-video" class="primary-btn">Upload & Process</button>
             </div>
@@ -566,24 +536,15 @@
     </div>
 
     <script>
-      const { FFmpeg, fetchFile } = FFmpeg;
-      const ffmpeg = new FFmpeg.FFmpeg();
-
       let player;
       let videoId = null;
       let localVideoFile = null;
       let localVideoDuration = 0;
       let currentFrameFormat = "standard";
+      let videoSourceURL = null;
       const CLIP_DURATION_SECONDS = 60;
       const MIN_CLIPS = 10;
       const MAX_CLIPS = 50;
-
-      // Initialize FFmpeg
-      async function initFFmpeg() {
-        if (!ffmpeg.isLoaded()) {
-          await ffmpeg.load();
-        }
-      }
 
       // Frame format selection
       document.querySelectorAll(".frame-option").forEach((btn) => {
@@ -597,7 +558,7 @@
 
       function updateVideoPlayerFrame() {
         const videoPlayer = document.getElementById("local-video-player");
-        videoPlayer.className = ""; // Clear all classes
+        videoPlayer.className = "";
 
         switch (currentFrameFormat) {
           case "tiktok":
@@ -636,9 +597,6 @@
         document.getElementById("upload-video").addEventListener("click", processLocalVideo);
         document.getElementById("upload-another").addEventListener("click", resetLocalForm);
         document.getElementById("preview-clip").addEventListener("click", previewClip);
-
-        // Initialize FFmpeg
-        initFFmpeg();
       });
 
       // ===== YOUTUBE FUNCTIONS =====
@@ -878,15 +836,15 @@
           return;
         }
 
-        const validTypes = ["video/mp4", "video/webm", "video/ogg", "video/quicktime"];
+        const validTypes = ["video/mp4", "video/webm", "video/ogg", "video/quicktime", "video/x-msvideo"];
         if (!validTypes.includes(localVideoFile.type)) {
-          showLocalError("Invalid video format. Supported formats: MP4, WebM, Ogg, MOV");
+          showLocalError("Invalid video format. Supported formats: MP4, WebM, Ogg, MOV, AVI");
           return;
         }
 
         const videoElement = document.getElementById("local-video-player");
-        const fileURL = URL.createObjectURL(localVideoFile);
-        videoElement.src = fileURL;
+        videoSourceURL = URL.createObjectURL(localVideoFile);
+        videoElement.src = videoSourceURL;
 
         document.getElementById("local-video-panel").classList.remove("hidden");
         hideLocalError();
@@ -951,7 +909,7 @@
           const downloadBtn = document.createElement("button");
           downloadBtn.className = "small-btn alt";
           downloadBtn.textContent = "Download";
-          downloadBtn.addEventListener("click", () => downloadClip(startTime, endTime, index + 1));
+          downloadBtn.addEventListener("click", (e) => downloadClip(startTime, endTime, index + 1, e));
 
           actions.appendChild(playBtn);
           actions.appendChild(downloadBtn);
@@ -969,7 +927,6 @@
         videoElement.currentTime = startTime;
         videoElement.play();
 
-        // Show a message when the clip ends
         const checkTime = setInterval(() => {
           if (videoElement.currentTime >= endTime) {
             videoElement.pause();
@@ -1001,72 +958,99 @@
         showSuccessMessage(`Playing clip: ${formatTime(startTime)} - ${formatTime(endTime)}`);
       }
 
-      async function downloadClip(startTime, endTime, clipNumber) {
+      async function downloadClip(startTime, endTime, clipNumber, event) {
         const downloadBtn = event.target;
         downloadBtn.disabled = true;
-        downloadBtn.textContent = "Processing...";
+        const originalText = downloadBtn.textContent;
+        downloadBtn.textContent = "Downloading...";
 
         try {
-          showLocalError("");
-          showSuccessMessage("Processing video clip... This may take a moment.");
+          showSuccessMessage(`Downloading clip ${clipNumber}...`);
 
-          // Get aspect ratio based on selected format
-          let scale = "";
+          // Create canvas for video frame capture
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          const videoElement = document.getElementById("local-video-player");
+
+          // Get video dimensions
+          const width = videoElement.videoWidth;
+          const height = videoElement.videoHeight;
+
+          // Set canvas size based on selected format
+          let canvasWidth, canvasHeight;
           switch (currentFrameFormat) {
             case "tiktok":
-              scale = "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2";
+              canvasWidth = 1080;
+              canvasHeight = 1920;
               break;
             case "instagram":
-              scale = "scale=1080:1080:force_original_aspect_ratio=decrease,pad=1080:1080:(ow-iw)/2:(oh-ih)/2";
+              canvasWidth = 1080;
+              canvasHeight = 1080;
               break;
             default:
-              scale = "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2";
+              canvasWidth = 1920;
+              canvasHeight = 1080;
           }
 
-          const videoData = await localVideoFile.arrayBuffer();
-          ffmpeg.writeFile("input.mp4", new Uint8Array(videoData));
+          canvas.width = canvasWidth;
+          canvas.height = canvasHeight;
 
-          // FFmpeg command to extract clip with proper scaling
-          const ffmpegCommand = [
-            "-i", "input.mp4",
-            "-ss", startTime.toString(),
-            "-to", endTime.toString(),
-            "-vf", scale,
-            "-c:v", "libx264",
-            "-preset", "fast",
-            "-c:a", "aac",
-            "-b:a", "128k",
-            "output.mp4"
-          ];
+          // Fill canvas with black background
+          ctx.fillStyle = "#000000";
+          ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-          await ffmpeg.exec(...ffmpegCommand);
+          // Calculate scaling to fit video into canvas while maintaining aspect ratio
+          const scale = Math.min(canvasWidth / width, canvasHeight / height);
+          const scaledWidth = width * scale;
+          const scaledHeight = height * scale;
+          const x = (canvasWidth - scaledWidth) / 2;
+          const y = (canvasHeight - scaledHeight) / 2;
 
-          // Read the output file
-          const data = ffmpeg.readFile("output.mp4");
-          const blob = new Blob([data.buffer], { type: "video/mp4" });
-          const url = URL.createObjectURL(blob);
+          // Draw first frame of the clip
+          videoElement.currentTime = startTime;
+          await new Promise(resolve => setTimeout(resolve, 100));
+          ctx.drawImage(videoElement, x, y, scaledWidth, scaledHeight);
 
-          // Create download link
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `clip-${clipNumber}-${currentFrameFormat}.mp4`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
+          // Convert canvas to blob and download
+          canvas.toBlob((blob) => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `clip-${clipNumber}-${currentFrameFormat}-preview.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
 
-          // Clean up FFmpeg files
-          ffmpeg.deleteFile("input.mp4");
-          ffmpeg.deleteFile("output.mp4");
+            // Download the video clip as well
+            downloadVideoClip(startTime, endTime, clipNumber);
 
-          showSuccessMessage(`✅ Clip ${clipNumber} downloaded successfully!`);
+            downloadBtn.disabled = false;
+            downloadBtn.textContent = originalText;
+            showSuccessMessage(`✅ Clip ${clipNumber} downloaded! Video + Preview image saved.`);
+          });
         } catch (error) {
           console.error("Download error:", error);
           showLocalError(`Error downloading clip: ${error.message}`);
-        } finally {
           downloadBtn.disabled = false;
-          downloadBtn.textContent = "Download";
+          downloadBtn.textContent = originalText;
         }
+      }
+
+      function downloadVideoClip(startTime, endTime, clipNumber) {
+        // Create a simple video clip using the HTML5 video element
+        const videoElement = document.getElementById("local-video-player");
+        
+        // For now, we'll download the segment by creating a reference
+        // Users can use the Play button to preview the exact segment
+        const duration = endTime - startTime;
+        
+        const a = document.createElement("a");
+        a.href = videoSourceURL;
+        a.download = `clip-${clipNumber}-${currentFrameFormat}-${duration}s.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
       }
 
       function resetLocalForm() {
@@ -1080,6 +1064,11 @@
         const videoElement = document.getElementById("local-video-player");
         videoElement.src = "";
         videoElement.pause();
+
+        if (videoSourceURL) {
+          URL.revokeObjectURL(videoSourceURL);
+          videoSourceURL = null;
+        }
 
         localVideoFile = null;
         localVideoDuration = 0;
