@@ -263,6 +263,46 @@
         margin-bottom: 12px;
       }
 
+      .clip-list {
+        margin-top: 28px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .clip-item {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 12px;
+        align-items: center;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 12px 16px;
+      }
+
+      .clip-item .label {
+        font-weight: 700;
+        color: #1f2937;
+      }
+
+      .clip-item .actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .small-btn {
+        background: #0f172a;
+        color: white;
+        padding: 10px 14px;
+        font-size: 0.85rem;
+      }
+
+      .small-btn.alt {
+        background: #7c3aed;
+      }
+
       .error-message {
         max-width: 820px;
         margin: 18px auto 0;
@@ -282,7 +322,8 @@
 
       @media (max-width: 700px) {
         .time-grid,
-        .quick-actions {
+        .quick-actions,
+        .clip-item {
           grid-template-columns: 1fr;
         }
       }
@@ -343,7 +384,7 @@
                 <span>Clip Duration: <span id="clip-duration">0s</span></span>
               </div>
 
-              <button id="create-clip" class="action-btn success">Create Clip</button>
+              <button id="create-clip" class="action-btn success">Generate 1-Minute Clips</button>
               <button id="preview-clip" class="action-btn warning">Preview Clip</button>
             </div>
 
@@ -352,9 +393,11 @@
               <div id="preview-player"></div>
             </div>
 
+            <div id="clip-list" class="clip-list hidden"></div>
+
             <div id="download-box" class="download-box hidden">
               <h3>✅ Clip Created Successfully!</h3>
-              <p>Your clip is ready for sharing.</p>
+              <p>Your clip is ready to open or share.</p>
               <a id="download-link" class="download-btn" target="_blank" rel="noreferrer">Open Clip</a>
               <div>
                 <button id="create-another" class="secondary-btn">Create Another Clip</button>
@@ -375,6 +418,7 @@
       let player;
       let previewPlayer;
       let videoId = null;
+      const CLIP_DURATION_SECONDS = 60;
 
       document.addEventListener("DOMContentLoaded", function () {
         document.getElementById("load-video").addEventListener("click", loadVideo);
@@ -403,6 +447,113 @@
 
       function hideError() {
         document.getElementById("error-message").classList.add("hidden");
+      }
+
+      function formatTime(totalSeconds) {
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        if (hours > 0) {
+          return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+        }
+
+        return `${minutes}:${String(seconds).padStart(2, "0")}`;
+      }
+
+      function createClipLink(startTime, endTime) {
+        return `https://www.youtube.com/watch?v=${videoId}&t=${startTime}s`;
+      }
+
+      function copyClipLink(url) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url)
+            .then(() => {
+              alert("Clip link copied to clipboard.");
+            })
+            .catch(() => {
+              alert("Copy failed. You can still use the Open Clip button.");
+            });
+          return;
+        }
+
+        alert("Clipboard copy is not available in this browser. Use the Open Clip button instead.");
+      }
+
+      function shareClip(url) {
+        const shareData = {
+          title: "Clip-it Clip",
+          text: "Check out this 1-minute clip.",
+          url
+        };
+
+        if (navigator.share) {
+          navigator.share(shareData).catch(() => {});
+          return;
+        }
+
+        const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent("Check out this 1-minute clip")}&url=${encodeURIComponent(url)}`;
+        window.open(twitterUrl, "_blank", "noopener,noreferrer");
+      }
+
+      function generateMinuteClips() {
+        if (!videoId || !player || !player.getDuration) {
+          showError("Please load a valid YouTube video first.");
+          return;
+        }
+
+        const totalSeconds = Math.max(0, Math.floor(player.getDuration()));
+        if (totalSeconds <= 0) {
+          showError("The video duration could not be read.");
+          return;
+        }
+
+        const clipList = document.getElementById("clip-list");
+        clipList.innerHTML = "";
+        clipList.classList.remove("hidden");
+
+        const segmentCount = Math.ceil(totalSeconds / CLIP_DURATION_SECONDS);
+
+        for (let index = 0; index < segmentCount; index++) {
+          const startTime = index * CLIP_DURATION_SECONDS;
+          const endTime = Math.min(startTime + CLIP_DURATION_SECONDS, totalSeconds);
+          const clipUrl = createClipLink(startTime, endTime);
+
+          const item = document.createElement("div");
+          item.className = "clip-item";
+
+          const label = document.createElement("div");
+          label.className = "label";
+          label.textContent = `Clip ${index + 1}: ${formatTime(startTime)} - ${formatTime(endTime)}`;
+
+          const actions = document.createElement("div");
+          actions.className = "actions";
+
+          const openBtn = document.createElement("button");
+          openBtn.className = "small-btn";
+          openBtn.textContent = "Open";
+          openBtn.addEventListener("click", () => window.open(clipUrl, "_blank", "noopener,noreferrer"));
+
+          const copyBtn = document.createElement("button");
+          copyBtn.className = "small-btn alt";
+          copyBtn.textContent = "Copy Link";
+          copyBtn.addEventListener("click", () => copyClipLink(clipUrl));
+
+          const shareBtn = document.createElement("button");
+          shareBtn.className = "small-btn alt";
+          shareBtn.textContent = "Share";
+          shareBtn.addEventListener("click", () => shareClip(clipUrl));
+
+          actions.appendChild(openBtn);
+          actions.appendChild(copyBtn);
+          actions.appendChild(shareBtn);
+
+          item.appendChild(label);
+          item.appendChild(actions);
+          clipList.appendChild(item);
+        }
+
+        hideError();
       }
 
       function loadVideo() {
@@ -543,17 +694,22 @@
           return;
         }
 
-        if (endTime - startTime > 600) {
+        const clipDuration = endTime - startTime;
+        if (clipDuration > 600) {
           showError("Clip duration cannot exceed 10 minutes.");
           return;
         }
 
         hideError();
-
-        const clipUrl = `https://www.youtube.com/embed/${videoId}?start=${startTime}&end=${endTime}`;
+        const clipUrl = `https://www.youtube.com/watch?v=${videoId}&t=${startTime}s`;
         document.getElementById("download-box").classList.remove("hidden");
         const link = document.getElementById("download-link");
         link.href = clipUrl;
+        link.textContent = `Open Clip (${formatTime(startTime)} - ${formatTime(endTime)})`;
+
+        if (clipDuration <= CLIP_DURATION_SECONDS) {
+          generateMinuteClips();
+        }
       }
 
       function resetForm() {
@@ -561,6 +717,8 @@
         document.getElementById("video-panel").classList.add("hidden");
         document.getElementById("preview-box").classList.add("hidden");
         document.getElementById("download-box").classList.add("hidden");
+        document.getElementById("clip-list").classList.add("hidden");
+        document.getElementById("clip-list").innerHTML = "";
         document.getElementById("clip-duration").textContent = "0s";
 
         setTimeFromSeconds("start", 0);
